@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <title>MatrixFX Dual Interface - Web Terminal</title>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <style>
+        body {
+            font-family: 'Consolas', monospace;
+            background-color: #f0f0f0;
+            margin: 20px;
+            max-width: 900px;
+        }
+        .section {
+            background: #fff;
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 12px;
+            border: 1px solid #ccc;
+        }
+        .top-bar, .bottom-bar {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        .macro-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 8px;
+            margin-top: 8px;
+        }
+        button {
+            padding: 6px 12px;
+            font-family: inherit;
+            cursor: pointer;
+        }
+        button:disabled, input:disabled, select:disabled {
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+        #terminal {
+            background-color: #1e1e1e;
+            color: #00ff00;
+            font-family: monospace;
+            font-size: 14pt;
+            font-weight: bold;
+            height: 250px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        input[type="text"] {
+            flex-grow: 1;
+            padding: 6px;
+            font-family: inherit;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="section top-bar">
+        <label>Port:</label>
+        <select id="ports"></select>
+        <button onclick="refreshPorts()">Update</button>
+
+        <label>Baudrate:</label>
+        <select id="baud">
+            <option value="9600">9600</option>
+            <option value="19200">19200</option>
+            <option value="38400">38400</option>
+            <option value="57600">57600</option>
+            <option value="115200" selected>115200</option>
+        </select>
+
+        <button id="btnConnect" onclick="toggleConnection()">Connect</button>
+    </div>
+
+    <div class="section">
+        <strong>Macros (Label | Command)</strong>
+        <div class="macro-grid" id="macroContainer"></div>
+    </div>
+
+    <div class="section bottom-bar">
+        <input type="text" id="lineInput" placeholder="Write command and send..." disabled onkeydown="if(event.key==='Enter') sendCustomData()">
+        <button id="btnSend" onclick="sendCustomData()" disabled>Send</button>
+    </div>
+
+    <div id="terminal"></div>
+
+    <script>
+        const socket = io();
+        let isConnected = false;
+
+        socket.on('connect', () => {
+            socket.emit('get_initial_data');
+        });
+
+        socket.on('initial_data', (data) => {
+            updatePortList(data.ports);
+            renderMacros(data.macros);
+            setConnectedState(data.connected);
+        });
+
+        socket.on('ports_list', (data) => {
+            updatePortList(data.ports);
+        });
+
+        socket.on('connection_status', (data) => {
+            setConnectedState(data.connected);
+            appendTerminal(data.message);
+        });
+
+        socket.on('serial_data', (data) => {
+            appendTerminal(data.data);
+        });
+
+        function updatePortList(ports) {
+            const select = document.getElementById('ports');
+            select.innerHTML = '';
+            ports.forEach(port => {
+                const opt = document.createElement('option');
+                opt.value = port;
+                opt.textContent = port;
+                select.appendChild(opt);
+            });
+        }
+
+        function renderMacros(macros) {
+            const container = document.getElementById('macroContainer');
+            container.innerHTML = '';
+            macros.forEach((m) => {
+                const btn = document.createElement('button');
+                btn.textContent = m.label;
+                btn.title = m.command ? `Command: ${m.command}` : '';
+                btn.className = 'macro-btn';
+                btn.disabled = true;
+                btn.dataset.command = m.command;
+                btn.onclick = () => sendCommand(m.command);
+                container.appendChild(btn);
+            });
+        }
+
+        function toggleConnection() {
+            if (isConnected) {
+                socket.emit('disconnect_serial');
+            } else {
+                const port = document.getElementById('ports').value;
+                const baud = document.getElementById('baud').value;
+                socket.emit('connect_serial', { port: port, baud: baud });
+            }
+        }
+
+        function setConnectedState(connected) {
+            isConnected = connected;
+            document.getElementById('btnConnect').textContent = connected ? 'Disconnect' : 'Connect';
+            document.getElementById('ports').disabled = connected;
+            document.getElementById('baud').disabled = connected;
+            document.getElementById('lineInput').disabled = !connected;
+            document.getElementById('btnSend').disabled = !connected;
+
+            document.querySelectorAll('.macro-btn').forEach(btn => {
+                const hasCommand = btn.dataset.command && btn.dataset.command.trim() !== '';
+                btn.disabled = !(connected && hasCommand);
+            });
+        }
+
+        function sendCommand(cmd) {
+            if (cmd && isConnected) {
+                socket.emit('send_command', { command: cmd });
+            }
+        }
+
+        function sendCustomData() {
+            const input = document.getElementById('lineInput');
+            if (input.value) {
+                sendCommand(input.value);
+                input.value = '';
+            }
+        }
+
+        function refreshPorts() {
+            socket.emit('refresh_ports');
+        }
+
+        function appendTerminal(text) {
+            const term = document.getElementById('terminal');
+            term.textContent += text;
+            term.scrollTop = term.scrollHeight;
+        }
+    </script>
+</body>
+</html>

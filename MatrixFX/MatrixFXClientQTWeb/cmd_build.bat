@@ -1,0 +1,1 @@
+pyinstaller %1 --noconfirm --clean --onefile --add-data "templates;templates" --add-data "commands.txt;." --hidden-import "engineio.async_drivers.threading" --hidden-import "flask_socketio"
