@@ -206,7 +206,7 @@ class SerialTerminalQt(QMainWindow):
 
         top_layout.addWidget(QLabel("Baudrate:"))
         self.combo_baud = QComboBox()
-        self.combo_baud.addItems(["9600", "19200", "38400", "57600", "115200"])
+        self.combo_baud.addItems(["1200", "2400", "4800","9600", "19200", "38400", "57600", "115200"])
         self.combo_baud.setCurrentText("115200")
         top_layout.addWidget(self.combo_baud)
 
@@ -320,7 +320,7 @@ class SerialTerminalQt(QMainWindow):
 # --- 7. RUNNER FLASK CON CATCH ECCEZIONI ---
 def run_flask():
     try:
-        socketio.run(flask_app, host='0.0.0.0', port=5000, debug=False, use_reloader=False)
+        socketio.run(flask_app, host='0.0.0.0', port=47373, debug=False, use_reloader=False)
     except Exception as e:
         print(f"Error starting Web Server: {e}")
 
