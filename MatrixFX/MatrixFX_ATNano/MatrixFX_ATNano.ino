@@ -44,7 +44,7 @@ void setup() {
   //  stayon = EEPROM.read(2);
   //  stayoff = EEPROM.read(4);
     Serial.begin(115200);
-    Serial.println(F("MatrixFX v.19.0626.A by IU7QMN"));
+    Serial.println(F("MatrixFX v.10.0726.A by IU7QMN"));
     Serial.println(F("Enable first..."));
     delay(2000);
     Serial.println(F("<MatrixFX is ready>"));
@@ -216,7 +216,7 @@ void showNewData() {
         digitalWrite(18, LOW);
         delay(stayoff);
         break;
-      // SPECIAL FUNCTION //
+      // SPECIAL FUNCTION - EXPERIMENTAL//
       case 'M':
         //Serial.print(receivedChar);
         Serial.println("MANUAL MODE");
