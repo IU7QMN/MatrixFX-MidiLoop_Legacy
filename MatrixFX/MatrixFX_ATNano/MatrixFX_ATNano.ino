@@ -2,8 +2,8 @@
 //#include <EEPROM.h>
 char receivedChar;
 boolean newData = false;
-int stayon = 300;
-int stayoff = 100;
+int stayon = 400;
+int stayoff = 200;
 
 void setup() {
     pinMode(13, OUTPUT);
