@@ -106,19 +106,45 @@ class SerialManager(QObject):
                 socketio.emit('serial_data', {'data': err_msg})
                 break
 
-    def load_preset_commands(self):
+    def load_config_and_presets(self):
+        """Legge la configurazione e le macro dal file commands.txt"""
+        config = {
+            "web_port": 47373,
+            "serial_port": "",
+            "baud_rate": 115200,
+            "macros": []
+        }
+
         if not os.path.exists(self.config_file):
-            default_cmds = [f"Label {i+1}|COMMAND_{i+1}" for i in range(10)]
+            default_content = (
+                "WEB_PORT=47373\n"
+                "SERIAL_PORT=\n"
+                "BAUD_RATE=115200\n"
+            ) + "\n".join([f"Label {i+1}|COMMAND_{i+1}" for i in range(10)])
+            
             with open(self.config_file, "w") as f:
-                f.write("\n".join(default_cmds))
+                f.write(default_content)
 
         parsed_items = []
         try:
             with open(self.config_file, "r") as f:
                 for line in f:
                     line = line.strip()
-                    if not line:
+                    if not line or line.startswith("#"):
                         continue
+                    
+                    if "=" in line and "|" not in line:
+                        key, val = line.split("=", 1)
+                        key = key.strip().upper()
+                        val = val.strip()
+                        if key == "WEB_PORT":
+                            config["web_port"] = int(val) if val.isdigit() else 47373
+                        elif key == "SERIAL_PORT":
+                            config["serial_port"] = val
+                        elif key == "BAUD_RATE":
+                            config["baud_rate"] = int(val) if val.isdigit() else 115200
+                        continue
+
                     if "|" in line:
                         label, cmd = line.split("|", 1)
                     else:
@@ -133,7 +159,56 @@ class SerialManager(QObject):
                 macros.append({"label": parsed_items[i][0], "command": parsed_items[i][1]})
             else:
                 macros.append({"label": f"Empty {i+1}", "command": ""})
-        return macros
+
+        config["macros"] = macros
+        return config
+
+    def update_serial_config(self, new_port, new_baud):
+        """Aggiorna solo SERIAL_PORT e BAUD_RATE nel file commands.txt, mantenendo inalterati gli altri parametri."""
+        if not os.path.exists(self.config_file):
+            self.load_config_and_presets()
+
+        lines = []
+        try:
+            with open(self.config_file, "r") as f:
+                lines = f.readlines()
+        except Exception as e:
+            print(f"Error reading {self.config_file} for update: {e}")
+            return
+
+        updated_port = False
+        updated_baud = False
+        new_lines = []
+
+        for line in lines:
+            stripped = line.strip()
+            if "=" in stripped and "|" not in stripped:
+                key, _ = stripped.split("=", 1)
+                key = key.strip().upper()
+                if key == "SERIAL_PORT":
+                    new_lines.append(f"SERIAL_PORT={new_port}\n")
+                    updated_port = True
+                    continue
+                elif key == "BAUD_RATE":
+                    new_lines.append(f"BAUD_RATE={new_baud}\n")
+                    updated_baud = True
+                    continue
+            new_lines.append(line)
+
+        # Se le chiavi non erano presenti nel file, le aggiunge in cima
+        prefix = []
+        if not updated_port:
+            prefix.append(f"SERIAL_PORT={new_port}\n")
+        if not updated_baud:
+            prefix.append(f"BAUD_RATE={new_baud}\n")
+
+        final_lines = prefix + new_lines
+
+        try:
+            with open(self.config_file, "w") as f:
+                f.writelines(final_lines)
+        except Exception as e:
+            print(f"Error updating {self.config_file}: {e}")
 
 
 # Istanza condivisa
@@ -147,9 +222,10 @@ def index():
 
 @socketio.on('get_initial_data')
 def handle_initial_data():
+    cfg = serial_mgr.load_config_and_presets()
     emit('initial_data', {
         'ports': serial_mgr.get_ports(),
-        'macros': serial_mgr.load_preset_commands(),
+        'macros': cfg["macros"],
         'connected': serial_mgr.is_connected()
     })
 
@@ -175,8 +251,9 @@ def handle_send_command(data):
 
 # --- 6. INTERFACCIA PYSIDE6 (QT) ---
 class SerialTerminalQt(QMainWindow):
-    def __init__(self):
+    def __init__(self, initial_config=None):
         super().__init__()
+        self.initial_config = initial_config or {}
         app_font = QFont("Consolas", 14)
         self.setFont(app_font)
         self.setWindowTitle("MatrixFXClientQT_10072026 by IU7QMN (Dual Qt/Web)")
@@ -186,6 +263,7 @@ class SerialTerminalQt(QMainWindow):
         self.init_ui()
         self.refresh_ports()
         self.load_preset_commands()
+        self.apply_initial_config()
 
         serial_mgr.data_received.connect(self.append_text)
         serial_mgr.status_changed.connect(self.on_status_changed)
@@ -255,7 +333,8 @@ class SerialTerminalQt(QMainWindow):
         self.setCentralWidget(main_widget)
 
     def load_preset_commands(self):
-        macros = serial_mgr.load_preset_commands()
+        cfg = serial_mgr.load_config_and_presets()
+        macros = cfg["macros"]
         for i in range(10):
             btn = self.preset_buttons[i]
             label = macros[i]["label"]
@@ -271,9 +350,27 @@ class SerialTerminalQt(QMainWindow):
             if cmd:
                 btn.clicked.connect(lambda checked=False, c=cmd: serial_mgr.send(c))
 
+    def apply_initial_config(self):
+        baud = str(self.initial_config.get("baud_rate", 115200))
+        idx_baud = self.combo_baud.findText(baud)
+        if idx_baud != -1:
+            self.combo_baud.setCurrentIndex(idx_baud)
+
+        port = self.initial_config.get("serial_port", "")
+        if port:
+            idx_port = self.combo_ports.findText(port)
+            if idx_port != -1:
+                self.combo_ports.setCurrentIndex(idx_port)
+            else:
+                self.combo_ports.addItem(port)
+                self.combo_ports.setCurrentText(port)
+
     def refresh_ports(self):
+        current = self.combo_ports.currentText()
         self.combo_ports.clear()
         self.combo_ports.addItems(serial_mgr.get_ports())
+        if current and self.combo_ports.findText(current) != -1:
+            self.combo_ports.setCurrentText(current)
 
     def toggle_connection(self):
         if serial_mgr.is_connected():
@@ -281,6 +378,10 @@ class SerialTerminalQt(QMainWindow):
         else:
             port = self.combo_ports.currentText()
             baud = int(self.combo_baud.currentText())
+            
+            # Salva la porta e la velocità aggiornate nel file commands.txt
+            serial_mgr.update_serial_config(port, baud)
+            
             serial_mgr.connect(port, baud)
 
     @Slot(bool, str)
@@ -318,20 +419,24 @@ class SerialTerminalQt(QMainWindow):
 
 
 # --- 7. RUNNER FLASK CON CATCH ECCEZIONI ---
-def run_flask():
+def run_flask(port):
     try:
-        socketio.run(flask_app, host='0.0.0.0', port=47373, debug=False, use_reloader=False)
+        socketio.run(flask_app, host='0.0.0.0', port=port, debug=False, use_reloader=False)
     except Exception as e:
-        print(f"Error starting Web Server: {e}")
+        print(f"Error starting Web Server on port {port}: {e}")
 
 
 if __name__ == "__main__":
-    # Avvio del Thread Server Web
-    web_thread = threading.Thread(target=run_flask, daemon=True)
+    # Caricamento configurazioni iniziali
+    config = serial_mgr.load_config_and_presets()
+    web_port = config.get("web_port", 47373)
+
+    # Avvio del Thread Server Web con la porta configurata
+    web_thread = threading.Thread(target=run_flask, args=(web_port,), daemon=True)
     web_thread.start()
 
     # Avvio applicazione Qt
     app = QApplication(sys.argv)
-    window = SerialTerminalQt()
+    window = SerialTerminalQt(initial_config=config)
     window.show()
     sys.exit(app.exec())
