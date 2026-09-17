@@ -1,2 +1,2 @@
-This circuit interfaces the PC with the matrix keypad on the Legacy Loop Controller by Ciro Mazzoni.
+This circuit interface the PC with the matrix keypad on the Legacy Loop Controller by Ciro Mazzoni.
 Tested with Python 3.13.15 , you are install some library first...
