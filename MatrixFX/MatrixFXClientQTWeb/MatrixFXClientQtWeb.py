@@ -256,7 +256,7 @@ class SerialTerminalQt(QMainWindow):
         self.initial_config = initial_config or {}
         app_font = QFont("Consolas", 14)
         self.setFont(app_font)
-        self.setWindowTitle("MatrixFXClientQT_17092026 by IU7QMN (Dual Qt/Web)")
+        self.setWindowTitle("MatrixFXClientQT_18092026 by IU7QMN (Dual Qt/Web)")
         self.resize(850, 500)
 
         self.preset_buttons = []
