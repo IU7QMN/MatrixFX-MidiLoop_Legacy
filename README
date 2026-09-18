@@ -1,2 +1,10 @@
 This circuit interface the PC with the matrix keypad on the Legacy Loop Controller by Ciro Mazzoni.
-Tested with Python 3.13.15 , you need to install some libraries first...
+Tested with Python 3.13.15 , you need to install some libraries first by pip:
+
+pyserial
+pyqt6
+pyqt6-webengine
+pyside6
+flask
+flask-socketio
+pyinstaller (only for compile executable .exe)
