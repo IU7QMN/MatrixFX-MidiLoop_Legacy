@@ -2,94 +2,289 @@
 <html lang="it">
 <head>
     <meta charset="UTF-8">
-    <title>MatrixFX Dual Interface - Web Terminal</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MatrixFX Web Terminal</title>
     <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
     <style>
+        :root {
+            color-scheme: dark;
+        }
+
         body {
-            font-family: 'Consolas', monospace;
-            background-color: #f0f0f0;
-            margin: 20px;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #121212;
+            color: #e0e0e0;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
             max-width: 900px;
+            margin: 0 auto;
+            background-color: #1e1e1e;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
         }
-        .section {
-            background: #fff;
-            padding: 12px;
-            border-radius: 6px;
-            margin-bottom: 12px;
-            border: 1px solid #ccc;
+
+        h2 {
+            margin-top: 0;
+            color: #007acc;
+            border-bottom: 1px solid #333;
+            padding-bottom: 10px;
         }
-        .top-bar, .bottom-bar {
+
+        .controls {
             display: flex;
             gap: 10px;
             align-items: center;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
         }
-        .macro-grid {
-            display: grid;
-            grid-template-columns: repeat(5, 1fr);
-            gap: 8px;
-            margin-top: 8px;
-        }
-        button {
-            padding: 6px 12px;
-            font-family: inherit;
-            cursor: pointer;
-        }
-        button:disabled, input:disabled, select:disabled {
-            cursor: not-allowed;
-            opacity: 0.6;
-        }
-        #terminal {
-            background-color: #1e1e1e;
-            color: #00ff00;
-            font-family: monospace;
-            font-size: 14pt;
+
+        label {
             font-weight: bold;
-            height: 250px;
-            overflow-y: auto;
-            white-space: pre-wrap;
-            padding: 10px;
+        }
+
+        select, input[type="text"] {
+            background-color: #252526;
+            color: #ffffff;
+            border: 1px solid #3d3d3d;
+            padding: 8px;
             border-radius: 4px;
         }
-        input[type="text"] {
+
+        button {
+            background-color: #007acc;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background-color 0.2s;
+        }
+
+        button:hover {
+            background-color: #005999;
+        }
+
+        button:disabled {
+            background-color: #333333;
+            color: #777777;
+            cursor: not-allowed;
+        }
+
+        .btn-disconnect {
+            background-color: #ce9178;
+        }
+
+        .btn-disconnect:hover {
+            background-color: #a6725c;
+        }
+
+        .macros-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 10px;
+            margin-bottom: 15px;
+            background-color: #252526;
+            padding: 15px;
+            border-radius: 6px;
+            border: 1px solid #333;
+        }
+
+        .macro-btn {
+            background-color: #2d2d2d;
+            border: 1px solid #3d3d3d;
+        }
+
+        .macro-btn:hover:not(:disabled) {
+            background-color: #3d3d3d;
+            border-color: #007acc;
+        }
+
+        .mode-selector {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 15px;
+            background-color: #252526;
+            padding: 10px 15px;
+            border-radius: 6px;
+            border: 1px solid #333;
+        }
+
+        .mode-label {
+            font-weight: bold;
+            color: #007acc;
+        }
+
+        .switch-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 24px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #007acc;
+            transition: .3s;
+            border-radius: 24px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .3s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider {
+            background-color: #28a745;
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(26px);
+        }
+
+        .mode-text {
+            font-weight: bold;
+            color: #ffffff;
+            font-size: 14px;
+        }
+
+        .input-bar {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            align-items: center;
+        }
+
+        #cmd-input {
             flex-grow: 1;
-            padding: 6px;
-            font-family: inherit;
+            font-size: 16px;
+            font-weight: bold;
+            font-family: 'Consolas', 'Courier New', monospace;
+            padding: 12px;
+            background-color: #252526;
+            color: #00ff00;
+            border: 1px solid #3d3d3d;
+            border-radius: 4px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        #cmd-input:focus {
+            border-color: #007acc;
+            box-shadow: 0 0 5px rgba(0, 122, 204, 0.5);
+        }
+
+        #cmd-input:disabled {
+            background-color: #181818;
+            color: #555555;
+            border-color: #222222;
+        }
+
+        #btn-send {
+            padding: 12px 40px;
+            font-size: 16px;
+            font-weight: bold;
+            background-color: #007acc;
+            border: 1px solid #005999;
+            min-width: 120px;
+        }
+
+        #btn-send:hover:not(:disabled) {
+            background-color: #0098ff;
+        }
+
+        #terminal {
+            width: 100%;
+            height: 300px;
+            background-color: #000000;
+            color: #00ff00;
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 14pt;
+            font-weight: bold;
+            padding: 10px;
+            box-sizing: border-box;
+            border-radius: 4px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            border: 1px solid #333;
         }
     </style>
 </head>
 <body>
+    <div class="container">
+        <h2>MatrixFX Web Terminal</h2>
+        
+        <div class="controls">
+            <label for="ports">Port:</label>
+            <select id="ports" onchange="onUserChangeSerialSettings()"></select>
+            <button id="btn-refresh" onclick="refreshPorts()">Update</button>
 
-    <div class="section top-bar">
-        <label>Port:</label>
-        <select id="ports"></select>
-        <button onclick="refreshPorts()">Update</button>
+            <label for="baud">Baudrate:</label>
+            <select id="baud" onchange="onUserChangeSerialSettings()">
+                <option value="1200">1200</option>
+                <option value="2400">2400</option>
+                <option value="4800">4800</option>
+                <option value="9600">9600</option>
+                <option value="19200">19200</option>
+                <option value="38400">38400</option>
+                <option value="57600">57600</option>
+                <option value="115200" selected>115200</option>
+            </select>
 
-        <label>Baudrate:</label>
-        <select id="baud">
-            <option value="9600">1200</option>
-            <option value="9600">2400</option>
-            <option value="9600">4800</option>
-            <option value="9600">9600</option>
-            <option value="19200">19200</option>
-            <option value="38400">38400</option>
-            <option value="57600">57600</option>
-            <option value="115200" selected>115200</option>
-        </select>
+            <button id="btn-connect" onclick="toggleConnect()">Connect</button>
+        </div>
 
-        <button id="btnConnect" onclick="toggleConnection()">Connect</button>
+        <div class="macros-grid" id="macros-container"></div>
+
+        <div class="mode-selector">
+            <span class="mode-label">Mode:</span>
+            <div class="switch-container">
+                <span class="mode-text">RAW</span>
+                <label class="switch">
+                    <!-- FREQ DI DEFAULT -->
+                    <input type="checkbox" id="mode-toggle" checked onchange="onUserToggleMode()">
+                    <span class="slider"></span>
+                </label>
+                <span class="mode-text">FREQ (B&lt;cmd&gt;*)</span>
+            </div>
+        </div>
+
+        <div class="input-bar">
+            <input type="text" id="cmd-input" placeholder="Write command and send..." disabled onkeypress="handleKeyPress(event)">
+            <button id="btn-send" onclick="sendCommand()" disabled>SEND</button>
+        </div>
+
+        <div id="terminal"></div>
     </div>
-
-    <div class="section">
-        <strong>Macros (Label | Command)</strong>
-        <div class="macro-grid" id="macroContainer"></div>
-    </div>
-
-    <div class="section bottom-bar">
-        <input type="text" id="lineInput" placeholder="Write command and send..." disabled onkeydown="if(event.key==='Enter') sendCustomData()">
-        <button id="btnSend" onclick="sendCustomData()" disabled>Send</button>
-    </div>
-
-    <div id="terminal"></div>
 
     <script>
         const socket = io();
@@ -100,26 +295,56 @@
         });
 
         socket.on('initial_data', (data) => {
-            updatePortList(data.ports);
+            updatePortsList(data.ports);
+            if (data.selected_port) document.getElementById('ports').value = data.selected_port;
+            if (data.selected_baud) document.getElementById('baud').value = data.selected_baud;
             renderMacros(data.macros);
             setConnectedState(data.connected);
+            updateModeSwitch(data.mode);
         });
 
         socket.on('ports_list', (data) => {
-            updatePortList(data.ports);
+            updatePortsList(data.ports);
         });
 
         socket.on('connection_status', (data) => {
             setConnectedState(data.connected);
-            appendTerminal(data.message);
+            if (data.message) appendTerminal(data.message);
         });
 
         socket.on('serial_data', (data) => {
-            appendTerminal(data.data);
+            if (data.data) appendTerminal(data.data);
         });
 
-        function updatePortList(ports) {
+        socket.on('mode_changed', (data) => {
+            updateModeSwitch(data.mode);
+        });
+
+        socket.on('serial_settings_changed', (data) => {
+            if (data.port) document.getElementById('ports').value = data.port;
+            if (data.baud) document.getElementById('baud').value = data.baud;
+        });
+
+        function onUserChangeSerialSettings() {
+            const port = document.getElementById('ports').value;
+            const baud = document.getElementById('baud').value;
+            socket.emit('change_serial_settings', { port: port, baud: baud });
+        }
+
+        function updateModeSwitch(mode) {
+            const toggle = document.getElementById('mode-toggle');
+            toggle.checked = (mode === 'FREQ');
+        }
+
+        function onUserToggleMode() {
+            const isFreq = document.getElementById('mode-toggle').checked;
+            const mode = isFreq ? 'FREQ' : 'RAW';
+            socket.emit('change_mode', { mode: mode });
+        }
+
+        function updatePortsList(ports) {
             const select = document.getElementById('ports');
+            const current = select.value;
             select.innerHTML = '';
             ports.forEach(port => {
                 const opt = document.createElement('option');
@@ -127,24 +352,41 @@
                 opt.textContent = port;
                 select.appendChild(opt);
             });
+            if (current) select.value = current;
         }
 
         function renderMacros(macros) {
-            const container = document.getElementById('macroContainer');
+            const container = document.getElementById('macros-container');
             container.innerHTML = '';
-            macros.forEach((m) => {
+            macros.forEach((m, idx) => {
                 const btn = document.createElement('button');
-                btn.textContent = m.label;
-                btn.title = m.command ? `Command: ${m.command}` : '';
                 btn.className = 'macro-btn';
-                btn.disabled = true;
-                btn.dataset.command = m.command;
-                btn.onclick = () => sendCommand(m.command);
+                btn.textContent = m.label || `Macro ${idx+1}`;
+                btn.title = m.command ? `Command: ${m.command}` : '';
+                btn.disabled = !isConnected || !m.command;
+                btn.onclick = () => {
+                    if (m.command) socket.emit('send_command', { command: m.command, mode: 'RAW' });
+                };
                 container.appendChild(btn);
             });
         }
 
-        function toggleConnection() {
+        function setConnectedState(connected) {
+            isConnected = connected;
+            document.getElementById('btn-connect').textContent = connected ? 'Disconnect' : 'Connect';
+            document.getElementById('btn-connect').className = connected ? 'btn-disconnect' : '';
+            document.getElementById('ports').disabled = connected;
+            document.getElementById('baud').disabled = connected;
+            document.getElementById('cmd-input').disabled = !connected;
+            document.getElementById('btn-send').disabled = !connected;
+
+            const macroBtns = document.querySelectorAll('.macro-btn');
+            macroBtns.forEach(btn => {
+                btn.disabled = !connected || !btn.title;
+            });
+        }
+
+        function toggleConnect() {
             if (isConnected) {
                 socket.emit('disconnect_serial');
             } else {
@@ -154,36 +396,26 @@
             }
         }
 
-        function setConnectedState(connected) {
-            isConnected = connected;
-            document.getElementById('btnConnect').textContent = connected ? 'Disconnect' : 'Connect';
-            document.getElementById('ports').disabled = connected;
-            document.getElementById('baud').disabled = connected;
-            document.getElementById('lineInput').disabled = !connected;
-            document.getElementById('btnSend').disabled = !connected;
-
-            document.querySelectorAll('.macro-btn').forEach(btn => {
-                const hasCommand = btn.dataset.command && btn.dataset.command.trim() !== '';
-                btn.disabled = !(connected && hasCommand);
-            });
+        function refreshPorts() {
+            socket.emit('refresh_ports');
         }
 
-        function sendCommand(cmd) {
-            if (cmd && isConnected) {
-                socket.emit('send_command', { command: cmd });
-            }
-        }
+        function sendCommand() {
+            const input = document.getElementById('cmd-input');
+            const cmd = input.value;
+            const isFreq = document.getElementById('mode-toggle').checked;
+            const mode = isFreq ? 'FREQ' : 'RAW';
 
-        function sendCustomData() {
-            const input = document.getElementById('lineInput');
-            if (input.value) {
-                sendCommand(input.value);
+            if (cmd) {
+                socket.emit('send_command', { command: cmd, mode: mode });
                 input.value = '';
             }
         }
 
-        function refreshPorts() {
-            socket.emit('refresh_ports');
+        function handleKeyPress(e) {
+            if (e.key === 'Enter') {
+                sendCommand();
+            }
         }
 
         function appendTerminal(text) {
